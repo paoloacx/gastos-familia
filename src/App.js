@@ -1,7 +1,9 @@
+// src/App.js
+import LoginButton from "./LoginButton";
 import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
 import * as XLSX from "xlsx";
 
 // Charts
@@ -26,7 +28,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
 function App() {
   const [usuario, setUsuario] = useState(null);
   const [gastos, setGastos] = useState([]);
@@ -38,6 +39,7 @@ function App() {
   });
   const [editandoId, setEditandoId] = useState(null);
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
+
   // Escuchar cambios de sesión
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -46,8 +48,28 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Login con Google
-  const loginGoogle = () => signInWithPopup(auth, provider);
+  // Recoger resultado del login por redirección (añadido)
+  useEffect(() => {
+    getRedirectResult(auth).catch((error) => {
+      console.log("Error en getRedirectResult:", error?.message);
+    });
+  }, []);
+
+  // Detectar iOS en modo Web App (añadido)
+  const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const esStandalone =
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator.standalone === true;
+
+  // Login con Google (modificado: usar redirección en iOS Web App)
+  const loginGoogle = () => {
+    if (esIOS && esStandalone) {
+      signInWithRedirect(auth, provider);
+    } else {
+      // Puedes usar redirección también en resto de navegadores para simplificar
+      signInWithRedirect(auth, provider);
+    }
+  };
 
   // Logout
   const logout = () => signOut(auth);
@@ -69,7 +91,6 @@ function App() {
       cargarGastos();
     }
   }, [usuario]);
-
   // Utils
   const fFecha = (iso) => {
     if (!iso) return "";
@@ -94,6 +115,7 @@ function App() {
   const toggleSemana = (clave) => {
     setSemanasAbiertas((prev) => ({ ...prev, [clave]: !prev[clave] }));
   };
+
   // Agrupación
   const gastosAgrupados = useMemo(() => {
     return gastos.reduce((acc, g) => {
@@ -209,7 +231,6 @@ function App() {
     XLSX.utils.book_append_sheet(libro, hoja, "Gastos");
     XLSX.writeFile(libro, "gastos-familia.xlsx");
   };
-
   // Charts
   const barData = {
     labels: Object.keys(totalesPorPersona),
