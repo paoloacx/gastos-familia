@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
-import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
+import { signInWithRedirect, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import * as XLSX from "xlsx";
 
 // Charts
@@ -29,6 +29,7 @@ ChartJS.register(
 );
 function App() {
   const [usuario, setUsuario] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [gastos, setGastos] = useState([]);
   const [nuevoGasto, setNuevoGasto] = useState({
     fecha: new Date().toISOString().split("T")[0],
@@ -45,29 +46,26 @@ useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
     console.log("onAuthStateChanged:", user);
     setUsuario(user || null);
+    setLoading(false); // 
   });
   return () => unsubscribe();
 }, []);
 
-// Recoger resultado del login por redirección
-useEffect(() => {
-  getRedirectResult(auth)
-    .then((result) => {
-      if (result?.user) {
-        console.log("Usuario tras redirect:", result.user);
-      } else {
-        console.log("No hay usuario en getRedirectResult");
-      }
-    })
-    .catch((error) => {
-      console.error("Error en getRedirectResult:", error);
-    });
-}, []);
-
-
   // Login y logout
-  const loginGoogle = () => signInWithRedirect(auth, provider);
-  const logout = () => signOut(auth);
+const loginGoogle = () => {
+  const isInStandaloneMode =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  if (isInStandaloneMode) {
+    signInWithRedirect(auth, provider);
+  } else {
+    signInWithPopup(auth, provider)
+      .catch((e) => console.error("Popup login error:", e));
+  }
+};
+
+const logout = () => signOut(auth);
 
   // Cargar gastos
   const cargarGastos = async () => {
@@ -84,10 +82,10 @@ useEffect(() => {
 
   // Utils
   const fFecha = (iso) => {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y}`;
-  };
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y.slice(-2)}`; // muestra solo los dos últimos dígitos del año
+};
   const semanaDelAnio = (date) => {
     const y = date.getFullYear();
     const start = new Date(y, 0, 1);
@@ -303,13 +301,19 @@ useEffect(() => {
   };
 
   const chartOptions = {
-    plugins: { legend: { position: "bottom" } },
-    responsive: true,
-    maintainAspectRatio: false,
-  };
-  return (
-    <div className="max-w-4xl mx-auto p-4 min-h-screen bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1>
+  plugins: { legend: { position: "bottom" } },
+  responsive: true,
+  maintainAspectRatio: false,
+};
+
+if (loading) {
+  return <p>Cargando sesión...</p>;
+}
+
+return (
+  <div className="max-w-4xl mx-auto p-4 min-h-screen bg-gray-100">
+    <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1>
+
 
       {/* Login */}
       {!usuario && (
@@ -439,23 +443,23 @@ useEffect(() => {
                         <table className="min-w-full border text-xs">
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="p-2 border whitespace-nowrap">Fecha</th>
-                              <th className="p-2 border whitespace-nowrap">Descripción</th>
-                              <th className="p-2 border whitespace-nowrap">Cantidad</th>
-                              <th className="p-2 border whitespace-nowrap">Persona</th>
-                              <th className="p-2 border whitespace-nowrap">Acciones</th>
+                              <th className="p-2 border w-[70px] text-sm">Fecha</th>
+                              <th className="p-2 border text-sm">Descripción</th>
+                              <th className="p-2 border w-[80px] text-sm">Cantidad</th>
+                              <th className="p-2 border w-[80px] text-sm">Persona</th>
+                              <th className="p-2 border text-sm">Acciones</th>
                             </tr>
                           </thead>
                           <tbody>
                             {lista.map((g) => (
                               <tr key={g.id}>
-                                <td className="p-2 border whitespace-nowrap">{fFecha(g.fecha)}</td>
-                                <td className="p-2 border">{g.descripcion}</td>
-                                <td className="p-2 border whitespace-nowrap">
+                                <td className="p-2 border w-[70px] text-sm">{fFecha(g.fecha)}</td>
+                                <td className="p-2 border text-sm">{g.descripcion}</td>
+                                <td className="p-2 border w-[80px] text-sm">
                                   {(g.cantidad || 0).toFixed(2)} €
                                 </td>
-                                <td className="p-2 border whitespace-nowrap">{g.persona}</td>
-                                <td className="p-2 border">
+                                <td className="p-2 border w-[80px] text-sm">{g.persona}</td>
+                                <td className="p-2 border text-sm">
                                   <div className="flex gap-2 justify-center">
                                     <button
                                       onClick={() => handleEdit(g)}
