@@ -1,5 +1,4 @@
 // src/App.js
-import LoginButton from "./LoginButton";
 import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
@@ -39,6 +38,7 @@ function App() {
   });
   const [editandoId, setEditandoId] = useState(null);
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
+  const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
 
   // Escuchar cambios de sesión
   useEffect(() => {
@@ -48,33 +48,22 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Recoger resultado del login por redirección (añadido)
+  // Recoger resultado del login por redirección
   useEffect(() => {
-    getRedirectResult(auth).catch((error) => {
-      console.log("Error en getRedirectResult:", error?.message);
-    });
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) console.log("Usuario logueado:", result.user);
+      })
+      .catch((error) => {
+        console.log("Error en getRedirectResult:", error?.message);
+      });
   }, []);
 
-  // Detectar iOS en modo Web App (añadido)
-  const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const esStandalone =
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-    window.navigator.standalone === true;
-
-  // Login con Google (modificado: usar redirección en iOS Web App)
-  const loginGoogle = () => {
-    if (esIOS && esStandalone) {
-      signInWithRedirect(auth, provider);
-    } else {
-      // Puedes usar redirección también en resto de navegadores para simplificar
-      signInWithRedirect(auth, provider);
-    }
-  };
-
-  // Logout
+  // Login y logout
+  const loginGoogle = () => signInWithRedirect(auth, provider);
   const logout = () => signOut(auth);
 
-  // Cargar datos
+  // Cargar gastos
   const cargarGastos = async () => {
     const qs = await getDocs(collection(db, "gastos"));
     const data = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -85,19 +74,14 @@ function App() {
     normalizados.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
     setGastos(normalizados);
   };
+  useEffect(() => { if (usuario) cargarGastos(); }, [usuario]);
 
-  useEffect(() => {
-    if (usuario) {
-      cargarGastos();
-    }
-  }, [usuario]);
   // Utils
   const fFecha = (iso) => {
     if (!iso) return "";
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
   };
-
   const semanaDelAnio = (date) => {
     const y = date.getFullYear();
     const start = new Date(y, 0, 1);
@@ -105,18 +89,15 @@ function App() {
     const offset = Math.floor((date - start) / msPerDay);
     return Math.floor(offset / 7) + 1;
   };
-
   const mesClave = (date) => {
     const y = date.getFullYear();
     const mesNombre = date.toLocaleString("default", { month: "long" });
     return `${mesNombre} ${y}`;
   };
-
   const toggleSemana = (clave) => {
     setSemanasAbiertas((prev) => ({ ...prev, [clave]: !prev[clave] }));
   };
-
-  // Agrupación
+  // Agrupación por mes y semana
   const gastosAgrupados = useMemo(() => {
     return gastos.reduce((acc, g) => {
       const fechaObj = new Date(g.fecha);
@@ -129,24 +110,60 @@ function App() {
     }, {});
   }, [gastos]);
 
-  // Totales
-  const totalesPorPersona = useMemo(() => {
-    return gastos.reduce((acc, g) => {
+  // Totales por persona filtrados según vista
+  const totalesPorPersonaVista = useMemo(() => {
+    let filtrados = gastos;
+
+    if (vista === "mes") {
+      const mesActual = new Date().getMonth();
+      const añoActual = new Date().getFullYear();
+      filtrados = gastos.filter((g) => {
+        const f = new Date(g.fecha);
+        return f.getMonth() === mesActual && f.getFullYear() === añoActual;
+      });
+    }
+
+    if (vista === "semana") {
+      const semanaActual = semanaDelAnio(new Date());
+      const añoActual = new Date().getFullYear();
+      filtrados = gastos.filter((g) => {
+        const f = new Date(g.fecha);
+        return semanaDelAnio(f) === semanaActual && f.getFullYear() === añoActual;
+      });
+    }
+
+    // "total" → no filtramos
+
+    return filtrados.reduce((acc, g) => {
       const p = g.persona || "Sin asignar";
       acc[p] = (acc[p] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
       return acc;
     }, {});
-  }, [gastos]);
+  }, [gastos, vista]);
 
   const totalGlobal = useMemo(
-    () => Object.values(totalesPorPersona).reduce((a, b) => a + b, 0),
-    [totalesPorPersona]
+    () => Object.values(totalesPorPersonaVista).reduce((a, b) => a + b, 0),
+    [totalesPorPersonaVista]
   );
 
+  // Totales por mes (para gráfico de línea)
   const totalesPorMes = useMemo(() => {
     const map = gastos.reduce((acc, g) => {
-      const fechaObj = new Date(g.fecha);
-      const clave = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}`;
+      const f = new Date(g.fecha);
+      const clave = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}`;
+      acc[clave] = (acc[clave] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
+      return acc;
+    }, {});
+    const labels = Object.keys(map).sort();
+    const data = labels.map((l) => map[l]);
+    return { labels, data };
+  }, [gastos]);
+
+  // Totales por semana (para gráfico de línea)
+  const totalesPorSemana = useMemo(() => {
+    const map = gastos.reduce((acc, g) => {
+      const f = new Date(g.fecha);
+      const clave = `${f.getFullYear()}-W${semanaDelAnio(f)}`;
       acc[clave] = (acc[clave] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
       return acc;
     }, {});
@@ -217,6 +234,7 @@ function App() {
       persona: g.persona,
     });
     setEditandoId(g.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const exportarExcel = () => {
@@ -231,24 +249,45 @@ function App() {
     XLSX.utils.book_append_sheet(libro, hoja, "Gastos");
     XLSX.writeFile(libro, "gastos-familia.xlsx");
   };
-  // Charts
+
+  // Datos para gráficos
   const barData = {
-    labels: Object.keys(totalesPorPersona),
+    labels: Object.keys(totalesPorPersonaVista),
     datasets: [
       {
-        label: "Gastos por persona (€)",
-        data: Object.values(totalesPorPersona),
+        label:
+          vista === "mes"
+            ? "Gastos por persona (mes actual)"
+            : vista === "semana"
+            ? "Gastos por persona (semana actual)"
+            : "Gastos por persona (total)",
+        data: Object.values(totalesPorPersonaVista),
         backgroundColor: ["#4F46E5", "#16A34A", "#DC2626", "#F59E0B", "#0EA5E9", "#A78BFA"],
       },
     ],
   };
 
   const lineData = {
-    labels: totalesPorMes.labels,
+    labels:
+      vista === "mes"
+        ? totalesPorMes.labels
+        : vista === "semana"
+        ? totalesPorSemana.labels
+        : totalesPorMes.labels, // en "total" usamos la serie mensual completa
     datasets: [
       {
-        label: "Total por mes (€)",
-        data: totalesPorMes.data,
+        label:
+          vista === "mes"
+            ? "Total por mes (€)"
+            : vista === "semana"
+            ? "Total por semana (€)"
+            : "Total histórico por mes (€)",
+        data:
+          vista === "mes"
+            ? totalesPorMes.data
+            : vista === "semana"
+            ? totalesPorSemana.data
+            : totalesPorMes.data,
         borderColor: "#4F46E5",
         backgroundColor: "rgba(79, 70, 229, 0.2)",
         tension: 0.2,
@@ -262,13 +301,11 @@ function App() {
     responsive: true,
     maintainAspectRatio: false,
   };
-
-  // JSX principal
   return (
     <div className="max-w-4xl mx-auto p-4 min-h-screen bg-gray-100">
       <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1>
 
-      {/* Si NO hay usuario → botón de login */}
+      {/* Login */}
       {!usuario && (
         <div className="text-center mt-6">
           <button
@@ -280,17 +317,17 @@ function App() {
         </div>
       )}
 
-      {/* Si hay usuario → mostrar toda la app */}
+      {/* App autenticada */}
       {usuario && (
         <>
           {/* Formulario */}
-          <form onSubmit={handleSubmit} className="flex gap-2 mb-4 flex-wrap">
+          <form onSubmit={handleSubmit} className="flex gap-2 mb-4 flex-wrap items-end">
             <input
               type="date"
               name="fecha"
               value={nuevoGasto.fecha}
               onChange={handleChange}
-              className="border p-2 rounded"
+              className="border p-2 rounded text-sm"
             />
             <input
               type="text"
@@ -298,7 +335,7 @@ function App() {
               placeholder="Descripción"
               value={nuevoGasto.descripcion}
               onChange={handleChange}
-              className="border p-2 rounded"
+              className="border p-2 rounded text-sm"
             />
             <input
               type="number"
@@ -307,13 +344,13 @@ function App() {
               placeholder="Cantidad"
               value={nuevoGasto.cantidad}
               onChange={handleChange}
-              className="border p-2 rounded"
+              className="border p-2 rounded text-sm"
             />
             <select
               name="persona"
               value={nuevoGasto.persona}
               onChange={handleChange}
-              className="border p-2 rounded"
+              className="border p-2 rounded text-sm"
             >
               <option value="">Selecciona persona</option>
               <option value="Paolo">Paolo</option>
@@ -324,7 +361,7 @@ function App() {
             </select>
             <button
               type="submit"
-              className={`px-3 py-2 rounded text-white transition ${
+              className={`px-3 py-2 rounded text-white transition text-sm ${
                 editandoId ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
               }`}
             >
@@ -332,22 +369,50 @@ function App() {
             </button>
           </form>
 
-          {/* Totales */}
+          {/* Selector Mes / Semana / Total */}
+          <div className="text-center mb-4">
+            <div className="inline-flex rounded overflow-hidden border">
+              <button
+                onClick={() => setVista("mes")}
+                className={`px-3 py-1 text-sm ${vista === "mes" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+              >
+                Mes
+              </button>
+              <button
+                onClick={() => setVista("semana")}
+                className={`px-3 py-1 text-sm ${vista === "semana" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+              >
+                Semana
+              </button>
+              <button
+                onClick={() => setVista("total")}
+                className={`px-3 py-1 text-sm ${vista === "total" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+              >
+                Total
+              </button>
+            </div>
+          </div>
+
+          {/* Totales por persona + global (filtrados por vista) */}
           <div className="mt-2 mb-4">
-            <h2 className="font-bold text-center mb-2">Totales por persona</h2>
+            <h2 className="font-bold text-center mb-2">
+              {vista === "mes"
+                ? "Totales por persona (mes actual)"
+                : vista === "semana"
+                ? "Totales por persona (semana actual)"
+                : "Totales por persona (total)"}
+            </h2>
             <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(totalesPorPersona).map(([persona, total]) => (
-                <li key={persona} className="border rounded p-2 text-center">
+              {Object.entries(totalesPorPersonaVista).map(([persona, total]) => (
+                <li key={persona} className="border rounded p-2 text-center text-sm">
                   <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
                 </li>
               ))}
             </ul>
-            <p className="mt-3 font-bold text-center">
-              Total global: {totalGlobal.toFixed(2)} €
-            </p>
+            <p className="mt-3 font-bold text-center">Total global: {totalGlobal.toFixed(2)} €</p>
           </div>
 
-          {/* Agrupación por mes y semana */}
+          {/* Agrupación por mes y semana con tablas */}
           {Object.entries(gastosAgrupados).map(([mes, semanas]) => (
             <div key={mes} className="mb-6">
               <h2 className="text-xl font-bold mb-2">📅 {mes}</h2>
@@ -355,7 +420,7 @@ function App() {
                 const clave = `${mes}-${semana}`;
                 const abierta = !!semanasAbiertas[clave];
                 return (
-                  <div key={semana} className="mb-4 border rounded">
+                  <div key={semana} className="mb-4 border rounded overflow-hidden">
                     <button
                       onClick={() => toggleSemana(clave)}
                       className="w-full text-left px-4 py-2 bg-gray-200 font-semibold"
@@ -365,36 +430,40 @@ function App() {
                     </button>
                     {abierta && (
                       <div className="overflow-x-auto">
-                        <table className="min-w-full border text-sm">
+                        <table className="min-w-full border text-xs">
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="p-2 border">Fecha</th>
-                              <th className="p-2 border">Descripción</th>
-                              <th className="p-2 border">Cantidad</th>
-                              <th className="p-2 border">Persona</th>
-                              <th className="p-2 border">Acciones</th>
+                              <th className="p-2 border whitespace-nowrap">Fecha</th>
+                              <th className="p-2 border whitespace-nowrap">Descripción</th>
+                              <th className="p-2 border whitespace-nowrap">Cantidad</th>
+                              <th className="p-2 border whitespace-nowrap">Persona</th>
+                              <th className="p-2 border whitespace-nowrap">Acciones</th>
                             </tr>
                           </thead>
                           <tbody>
                             {lista.map((g) => (
                               <tr key={g.id}>
-                                <td className="p-2 border">{fFecha(g.fecha)}</td>
+                                <td className="p-2 border whitespace-nowrap">{fFecha(g.fecha)}</td>
                                 <td className="p-2 border">{g.descripcion}</td>
-                                <td className="p-2 border">{(g.cantidad || 0).toFixed(2)} €</td>
-                                <td className="p-2 border">{g.persona}</td>
+                                <td className="p-2 border whitespace-nowrap">
+                                  {(g.cantidad || 0).toFixed(2)} €
+                                </td>
+                                <td className="p-2 border whitespace-nowrap">{g.persona}</td>
                                 <td className="p-2 border">
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 justify-center">
                                     <button
                                       onClick={() => handleEdit(g)}
-                                      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                      className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+                                      title="Editar"
                                     >
-                                      ✏️ Editar
+                                      ✏️
                                     </button>
                                     <button
                                       onClick={() => handleDelete(g.id)}
-                                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                                      className="bg-red-600 text-white p-2 rounded hover:bg-red-700"
+                                      title="Borrar"
                                     >
-                                      🗑️ Borrar
+                                      🗑️
                                     </button>
                                   </div>
                                 </td>
@@ -410,19 +479,22 @@ function App() {
             </div>
           ))}
 
-          {/* Dashboard */}
-          <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Gráficos sincronizados con vista */}
+          <section className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="h-64 border rounded p-3 bg-white/60 backdrop-blur-sm">
               <h3 className="font-semibold mb-2 text-center">Gastos por persona</h3>
               <Bar data={barData} options={chartOptions} />
             </div>
             <div className="h-64 border rounded p-3 bg-white/60 backdrop-blur-sm">
-              <h3 className="font-semibold mb-2 text-center">Total por mes</h3>
+              <h3 className="font-semibold mb-2 text-center">
+                {vista === "mes" ? "Total por mes" : vista === "semana" ? "Total por semana" : "Total histórico por mes"}
+              </h3>
               <Line data={lineData} options={chartOptions} />
             </div>
           </section>
         </>
-      )}      {/* Footer SIEMPRE visible */}
+      )}
+      {/* Footer siempre visible */}
       <footer className="mt-8 border-t pt-4 text-center text-sm text-gray-600">
         <button
           onClick={exportarExcel}
