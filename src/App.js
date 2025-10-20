@@ -2,7 +2,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
-import { signInWithRedirect, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { 
+  signInWithRedirect, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from "firebase/auth";
 import * as XLSX from "xlsx";
 
 // Charts
@@ -316,16 +323,48 @@ return (
 
 
       {/* Login */}
-      {!usuario && (
-        <div className="text-center mt-6">
-          <button
-            onClick={loginGoogle}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Iniciar sesión con Google
-          </button>
-        </div>
-      )}
+{!usuario && (
+  <div className="text-center mt-6 flex flex-col gap-4 items-center">
+    {/* Botón Google */}
+    <button
+      onClick={loginGoogle}
+      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-60"
+    >
+      Iniciar sesión con Google
+    </button>
+
+    {/* Formulario Email */}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        signInWithEmailAndPassword(auth, email, password)
+          .catch((err) => console.error("Error login email:", err));
+      }}
+      className="flex flex-col gap-2 w-60"
+    >
+      <input
+        type="email"
+        name="email"
+        placeholder="Correo"
+        className="border p-2 rounded text-sm"
+      />
+      <input
+        type="password"
+        name="password"
+        placeholder="Contraseña"
+        className="border p-2 rounded text-sm"
+      />
+      <button
+        type="submit"
+        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+      >
+        Iniciar sesión con Email
+      </button>
+    </form>
+  </div>
+)}
 
       {/* App autenticada */}
       {usuario && (
