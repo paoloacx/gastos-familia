@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import * as XLSX from "xlsx";
 
 // Charts
@@ -17,7 +17,16 @@ import {
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
 
-ChartJS.register(BarElement, LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend);
+ChartJS.register(
+  BarElement,
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  Tooltip,
+  Legend
+);
+
 function App() {
   const [usuario, setUsuario] = useState(null);
   const [gastos, setGastos] = useState([]);
@@ -29,21 +38,19 @@ function App() {
   });
   const [editandoId, setEditandoId] = useState(null);
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
+  // Escuchar cambios de sesión
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUsuario(user || null);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Login con Google
-  const loginGoogle = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      setUsuario(result.user);
-    } catch (err) {
-      console.error("Error al iniciar sesión:", err);
-    }
-  };
+  const loginGoogle = () => signInWithPopup(auth, provider);
 
-  const logout = async () => {
-    await signOut(auth);
-    setUsuario(null);
-  };
+  // Logout
+  const logout = () => signOut(auth);
 
   // Cargar datos
   const cargarGastos = async () => {
@@ -202,6 +209,7 @@ function App() {
     XLSX.utils.book_append_sheet(libro, hoja, "Gastos");
     XLSX.writeFile(libro, "gastos-familia.xlsx");
   };
+
   // Charts
   const barData = {
     labels: Object.keys(totalesPorPersona),
@@ -234,12 +242,24 @@ function App() {
     maintainAspectRatio: false,
   };
 
-  // JSX
+  // JSX principal
   return (
     <div className="max-w-4xl mx-auto p-4 min-h-screen bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1> 
+      <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1>
 
-      {/* Mostrar contenido solo si hay usuario */}
+      {/* Si NO hay usuario → botón de login */}
+      {!usuario && (
+        <div className="text-center mt-6">
+          <button
+            onClick={loginGoogle}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Iniciar sesión con Google
+          </button>
+        </div>
+      )}
+
+      {/* Si hay usuario → mostrar toda la app */}
       {usuario && (
         <>
           {/* Formulario */}
@@ -380,44 +400,44 @@ function App() {
               <Line data={lineData} options={chartOptions} />
             </div>
           </section>
-
-          {/* Footer */}
-          <footer className="mt-8 border-t pt-4 text-center text-sm text-gray-600">
-  <button
-    onClick={exportarExcel}
-    className="inline-flex items-center gap-2 bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 transition"
-  >
-    📤 Exportar a Excel
-  </button>
-
-    {usuario ? (
-    <div className="mt-3">
-      <p className="mb-1">
-        Conectado como <span className="font-semibold">{usuario.displayName}</span>
-      </p>
-      <button
-        onClick={logout}
-        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-      >
-        Cerrar sesión
-      </button>
-    </div>
-  ) : (
-    <div className="mt-3">
-      <button
-        onClick={loginGoogle}
-        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-      >
-        Iniciar sesión con Google
-      </button>
-    </div>
-  )}
-
-
-  <p className="mt-2">© 2025 Gastos Familia</p>
-</footer>
         </>
-      )}
+      )}      {/* Footer SIEMPRE visible */}
+      <footer className="mt-8 border-t pt-4 text-center text-sm text-gray-600">
+        <button
+          onClick={exportarExcel}
+          className="inline-flex items-center gap-2 bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 transition"
+        >
+          📤 Exportar a Excel
+        </button>
+
+        {usuario ? (
+          <div className="mt-3">
+            <p className="mb-1">
+              Conectado como{" "}
+              <span className="font-semibold">
+                {usuario.displayName || usuario.email}
+              </span>
+            </p>
+            <button
+              onClick={logout}
+              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <button
+              onClick={loginGoogle}
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+            >
+              Iniciar sesión con Google
+            </button>
+          </div>
+        )}
+
+        <p className="mt-2">© 2025 Gastos Familia</p>
+      </footer>
     </div>
   );
 }

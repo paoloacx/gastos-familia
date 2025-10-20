@@ -3,18 +3,17 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// 👇 Aquí va tu configuración (la que me pasaste)
 const firebaseConfig = {
-  apiKey: "AIzaSyAQRJZQhYxruxdVK0vv8cNAcOSJC0G3upM",
-  authDomain: "gastos-familia-a3da3.firebaseapp.com",
-  projectId: "gastos-familia-a3da3",
-  storageBucket: "gastos-familia-a3da3.firebasestorage.app",
-  messagingSenderId: "105658466585",
-  appId: "1:105658466585:web:7ee5014da645f101718588",
-  measurementId: "G-WZYLRF2YVW"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 // Inicializar Firebase
+console.log("API KEY:", process.env.REACT_APP_FIREBASE_API_KEY);
 const app = initializeApp(firebaseConfig);
 
 // Exportar Firestore y Auth
