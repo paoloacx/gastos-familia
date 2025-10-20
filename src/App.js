@@ -41,23 +41,29 @@ function App() {
   const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
 
   // Escuchar cambios de sesión
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUsuario(user || null);
-    });
-    return () => unsubscribe();
-  }, []);
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    console.log("onAuthStateChanged:", user);
+    setUsuario(user || null);
+  });
+  return () => unsubscribe();
+}, []);
 
-  // Recoger resultado del login por redirección
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) console.log("Usuario logueado:", result.user);
-      })
-      .catch((error) => {
-        console.log("Error en getRedirectResult:", error?.message);
-      });
-  }, []);
+// Recoger resultado del login por redirección
+useEffect(() => {
+  getRedirectResult(auth)
+    .then((result) => {
+      if (result?.user) {
+        console.log("Usuario tras redirect:", result.user);
+      } else {
+        console.log("No hay usuario en getRedirectResult");
+      }
+    })
+    .catch((error) => {
+      console.error("Error en getRedirectResult:", error);
+    });
+}, []);
+
 
   // Login y logout
   const loginGoogle = () => signInWithRedirect(auth, provider);
