@@ -390,9 +390,11 @@ function App() {
     📤 Exportar a Excel
   </button>
 
-  {usuario && (
+    {usuario ? (
     <div className="mt-3">
-      <p className="mb-1">Conectado como <span className="font-semibold">{usuario.displayName}</span></p>
+      <p className="mb-1">
+        Conectado como <span className="font-semibold">{usuario.displayName}</span>
+      </p>
       <button
         onClick={logout}
         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
@@ -400,7 +402,17 @@ function App() {
         Cerrar sesión
       </button>
     </div>
+  ) : (
+    <div className="mt-3">
+      <button
+        onClick={loginGoogle}
+        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+      >
+        Iniciar sesión con Google
+      </button>
+    </div>
   )}
+
 
   <p className="mt-2">© 2025 Gastos Familia</p>
 </footer>
