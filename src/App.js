@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import * as XLSX from "xlsx";
+
+// Charts
 import {
   Chart as ChartJS,
   BarElement,
@@ -16,6 +18,7 @@ import { Bar, Line } from "react-chartjs-2";
 
 ChartJS.register(BarElement, LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend);
 function App() {
+  // Estado principal
   const [gastos, setGastos] = useState([]);
   const [nuevoGasto, setNuevoGasto] = useState({
     fecha: new Date().toISOString().split("T")[0],
@@ -26,12 +29,7 @@ function App() {
   const [editandoId, setEditandoId] = useState(null);
   const [semanasAbiertas, setSemanasAbiertas] = useState({}); // control de plegado por semana
 
-  // Filtros
-  const [filtroPersona, setFiltroPersona] = useState("todos");
-  const [filtroDesde, setFiltroDesde] = useState("");
-  const [filtroHasta, setFiltroHasta] = useState("");
-
-  // Cargar datos
+  // Cargar datos desde Firestore
   const cargarGastos = async () => {
     const qs = await getDocs(collection(db, "gastos"));
     const data = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -39,8 +37,7 @@ function App() {
       ...g,
       cantidad: typeof g.cantidad === "number" ? g.cantidad : parseFloat(g.cantidad || 0),
     }));
-    // Orden por fecha descendente
-    normalizados.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+    normalizados.sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); // fecha descendente
     setGastos(normalizados);
   };
 
@@ -48,7 +45,7 @@ function App() {
     cargarGastos();
   }, []);
 
-  // Utils
+  // Utilidades
   const fFecha = (iso) => {
     if (!iso) return "";
     const [y, m, d] = iso.split("-");
@@ -73,20 +70,9 @@ function App() {
     setSemanasAbiertas((prev) => ({ ...prev, [clave]: !prev[clave] }));
   };
 
-  // Aplicar filtros
-  const gastosFiltrados = useMemo(() => {
-    return gastos.filter((g) => {
-      const personaOk = filtroPersona === "todos" || g.persona === filtroPersona;
-      const fechaObj = new Date(g.fecha);
-      const desdeOk = filtroDesde ? fechaObj >= new Date(filtroDesde) : true;
-      const hastaOk = filtroHasta ? fechaObj <= new Date(filtroHasta) : true;
-      return personaOk && desdeOk && hastaOk;
-    });
-  }, [gastos, filtroPersona, filtroDesde, filtroHasta]);
-
-  // Agrupar filtrados por mes y semana
+  // Agrupación por mes y semana (sin filtros)
   const gastosAgrupados = useMemo(() => {
-    return gastosFiltrados.reduce((acc, g) => {
+    return gastos.reduce((acc, g) => {
       const fechaObj = new Date(g.fecha);
       const mes = mesClave(fechaObj);
       const semana = `Semana ${semanaDelAnio(fechaObj)}`;
@@ -95,16 +81,16 @@ function App() {
       acc[mes][semana].push(g);
       return acc;
     }, {});
-  }, [gastosFiltrados]);
+  }, [gastos]);
 
-  // Totales por persona (en el set filtrado)
+  // Totales por persona y global
   const totalesPorPersona = useMemo(() => {
-    return gastosFiltrados.reduce((acc, g) => {
+    return gastos.reduce((acc, g) => {
       const p = g.persona || "Sin asignar";
       acc[p] = (acc[p] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
       return acc;
     }, {});
-  }, [gastosFiltrados]);
+  }, [gastos]);
 
   const totalGlobal = useMemo(
     () => Object.values(totalesPorPersona).reduce((a, b) => a + b, 0),
@@ -113,7 +99,7 @@ function App() {
 
   // Serie mensual para dashboard (total por mes)
   const totalesPorMes = useMemo(() => {
-    const map = gastosFiltrados.reduce((acc, g) => {
+    const map = gastos.reduce((acc, g) => {
       const fechaObj = new Date(g.fecha);
       const clave = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}`;
       acc[clave] = (acc[clave] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
@@ -122,7 +108,7 @@ function App() {
     const labels = Object.keys(map).sort(); // YYYY-MM ordenados
     const data = labels.map((l) => map[l]);
     return { labels, data };
-  }, [gastosFiltrados]);
+  }, [gastos]);
   // Handlers del formulario
   const handleChange = (e) => {
     setNuevoGasto({ ...nuevoGasto, [e.target.name]: e.target.value });
@@ -175,9 +161,9 @@ function App() {
     setEditandoId(g.id);
   };
 
-  // Exportar Excel (respeta filtros aplicados)
+  // Exportar Excel (todo el conjunto)
   const exportarExcel = () => {
-    const filas = gastosFiltrados.map((g) => ({
+    const filas = gastos.map((g) => ({
       Fecha: fFecha(g.fecha),
       Descripcion: g.descripcion,
       Cantidad: g.cantidad,
@@ -189,7 +175,7 @@ function App() {
     XLSX.writeFile(libro, "gastos-familia.xlsx");
   };
 
-  // Datos de charts
+  // Charts data
   const barData = {
     labels: Object.keys(totalesPorPersona),
     datasets: [
@@ -215,33 +201,10 @@ function App() {
   };
   const chartOptions = { plugins: { legend: { position: "bottom" } }, responsive: true, maintainAspectRatio: false };
 
-  // JSX principal
+  // JSX principal (sin filtros superiores)
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4 text-center">💰 Gastos Familia</h1>
-
-      {/* Filtros */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-2">
-        <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="border p-2 rounded">
-          <option value="todos">Todas las personas</option>
-          <option value="Paolo">Paolo</option>
-          <option value="Stfy">Stfy</option>
-          <option value="Pan">Pan</option>
-          <option value="León">León</option>
-        </select>
-        <input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} className="border p-2 rounded" />
-        <input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} className="border p-2 rounded" />
-        <button
-          onClick={() => {
-            setFiltroPersona("todos");
-            setFiltroDesde("");
-            setFiltroHasta("");
-          }}
-          className="border p-2 rounded bg-gray-100 hover:bg-gray-200"
-        >
-          Limpiar filtros
-        </button>
-      </div>
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="flex gap-2 mb-4 flex-wrap">
@@ -267,7 +230,7 @@ function App() {
 
       {/* Totales por persona */}
       <div className="mt-2 mb-4">
-        <h2 className="font-bold text-center mb-2">Totales por persona (filtrados)</h2>
+        <h2 className="font-bold text-center mb-2">Totales por persona</h2>
         <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {Object.entries(totalesPorPersona).map(([persona, total]) => (
             <li key={persona} className="border rounded p-2 text-center">
