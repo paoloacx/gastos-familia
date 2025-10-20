@@ -1,6 +1,15 @@
 // src/App.js
 import { useState, useEffect, useMemo } from "react";
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  updateDoc, 
+  query, 
+  where 
+} from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
 import { 
   signInWithRedirect, 
@@ -48,15 +57,34 @@ function App() {
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
   const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
 
-  // Escuchar cambios de sesión
+  // Escuchar cambios de sesión con lista blanca
 useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    console.log("onAuthStateChanged:", user);
-    setUsuario(user || null);
-    setLoading(false); // 
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Verificar si el email está en la colección usuariosPermitidos
+      const q = query(
+        collection(db, "usuariosPermitidos"),
+        where("email", "==", user.email)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        console.log("✅ Usuario autorizado:", user.email);
+        setUsuario(user);
+      } else {
+        console.warn("⛔ Usuario NO autorizado:", user.email);
+        await signOut(auth);
+        setUsuario(null);
+        alert("Tu cuenta no está autorizada para usar esta app.");
+      }
+    } else {
+      setUsuario(null);
+    }
+    setLoading(false);
   });
   return () => unsubscribe();
 }, []);
+
 
   // Login y logout
 const loginGoogle = () => {
