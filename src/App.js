@@ -50,9 +50,12 @@ function App() {
     fecha: new Date().toISOString().split("T")[0],
     descripcion: "",
     cantidad: "",
-    persona: "",
+    persona: "", // Para compatibilidad con gastos antiguos
+    personasSeleccionadas: [], // Para nuevos gastos con división
+    partidaEspecial: false,
   });
   const [editandoId, setEditandoId] = useState(null);
+  const miembros = ["Paolo", "Stfy", "Pan", "León"];
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
   const [mesesAbiertos, setMesesAbiertos] = useState({});
   const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
@@ -169,14 +172,14 @@ const logout = () => signOut(auth);
     }, {});
   }, [gastos]);
 
-  // Totales por persona filtrados según vista
+  // Totales por persona filtrados según vista (solo gastos normales)
   const totalesPorPersonaVista = useMemo(() => {
-    let filtrados = gastos;
+    let filtrados = gastos.filter((g) => !g.partidaEspecial); // Excluir partidas especiales
 
     if (vista === "mes") {
       const mesActual = new Date().getMonth();
       const añoActual = new Date().getFullYear();
-      filtrados = gastos.filter((g) => {
+      filtrados = filtrados.filter((g) => {
         const f = new Date(g.fecha);
         return f.getMonth() === mesActual && f.getFullYear() === añoActual;
       });
@@ -185,7 +188,7 @@ const logout = () => signOut(auth);
     if (vista === "semana") {
       const semanaActual = semanaDelAnio(new Date());
       const añoActual = new Date().getFullYear();
-      filtrados = gastos.filter((g) => {
+      filtrados = filtrados.filter((g) => {
         const f = new Date(g.fecha);
         return semanaDelAnio(f) === semanaActual && f.getFullYear() === añoActual;
       });
@@ -200,9 +203,43 @@ const logout = () => signOut(auth);
     }, {});
   }, [gastos, vista]);
 
+  // Totales de partidas especiales por persona
+  const totalesPartidasEspeciales = useMemo(() => {
+    let filtrados = gastos.filter((g) => g.partidaEspecial); // Solo partidas especiales
+
+    if (vista === "mes") {
+      const mesActual = new Date().getMonth();
+      const añoActual = new Date().getFullYear();
+      filtrados = filtrados.filter((g) => {
+        const f = new Date(g.fecha);
+        return f.getMonth() === mesActual && f.getFullYear() === añoActual;
+      });
+    }
+
+    if (vista === "semana") {
+      const semanaActual = semanaDelAnio(new Date());
+      const añoActual = new Date().getFullYear();
+      filtrados = filtrados.filter((g) => {
+        const f = new Date(g.fecha);
+        return semanaDelAnio(f) === semanaActual && f.getFullYear() === añoActual;
+      });
+    }
+
+    return filtrados.reduce((acc, g) => {
+      const p = g.persona || "Sin asignar";
+      acc[p] = (acc[p] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
+      return acc;
+    }, {});
+  }, [gastos, vista]);
+
   const totalGlobal = useMemo(
     () => Object.values(totalesPorPersonaVista).reduce((a, b) => a + b, 0),
     [totalesPorPersonaVista]
+  );
+
+  const totalPartidasEspeciales = useMemo(
+    () => Object.values(totalesPartidasEspeciales).reduce((a, b) => a + b, 0),
+    [totalesPartidasEspeciales]
   );
 
   // Totales por mes (para gráfico de línea)
@@ -236,36 +273,61 @@ const logout = () => signOut(auth);
     setNuevoGasto({ ...nuevoGasto, [e.target.name]: e.target.value });
   };
 
+  const handleCheckboxPersona = (persona) => {
+    const { personasSeleccionadas } = nuevoGasto;
+    if (personasSeleccionadas.includes(persona)) {
+      setNuevoGasto({
+        ...nuevoGasto,
+        personasSeleccionadas: personasSeleccionadas.filter((p) => p !== persona),
+      });
+    } else {
+      setNuevoGasto({
+        ...nuevoGasto,
+        personasSeleccionadas: [...personasSeleccionadas, persona],
+      });
+    }
+  };
+
+  const handlePartidaEspecialChange = (e) => {
+    setNuevoGasto({ ...nuevoGasto, partidaEspecial: e.target.checked });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { fecha, descripcion, cantidad, persona } = nuevoGasto;
-    if (!fecha || !descripcion || !cantidad || !persona) return;
+    const { fecha, descripcion, cantidad, personasSeleccionadas, partidaEspecial } = nuevoGasto;
+
+    // Validaciones
+    if (!fecha || !descripcion || !cantidad) return;
+    if (personasSeleccionadas.length === 0) {
+      alert("Selecciona al menos una persona");
+      return;
+    }
+
+    const cantidadNum = parseFloat(cantidad);
 
     if (editandoId) {
+      // Al editar, mantener la lógica simple por ahora
       await updateDoc(doc(db, "gastos", editandoId), {
         fecha,
         descripcion,
-        cantidad: parseFloat(cantidad),
-        persona,
+        cantidad: cantidadNum,
+        persona: personasSeleccionadas[0] || "",
+        partidaEspecial: partidaEspecial || false,
       });
       setEditandoId(null);
     } else {
-      if (persona === "Todos") {
-        const miembros = ["Paolo", "Stfy", "Pan", "León"];
-        for (const m of miembros) {
-          await addDoc(collection(db, "gastos"), {
-            fecha,
-            descripcion,
-            cantidad: parseFloat(cantidad),
-            persona: m,
-          });
-        }
-      } else {
+      // Dividir el gasto entre las personas seleccionadas
+      const cantidadPorPersona = cantidadNum / personasSeleccionadas.length;
+
+      for (const persona of personasSeleccionadas) {
         await addDoc(collection(db, "gastos"), {
           fecha,
-          descripcion,
-          cantidad: parseFloat(cantidad),
+          descripcion: personasSeleccionadas.length > 1
+            ? `${descripcion} (dividido entre ${personasSeleccionadas.length})`
+            : descripcion,
+          cantidad: cantidadPorPersona,
           persona,
+          partidaEspecial: partidaEspecial || false,
         });
       }
     }
@@ -275,6 +337,8 @@ const logout = () => signOut(auth);
       descripcion: "",
       cantidad: "",
       persona: "",
+      personasSeleccionadas: [],
+      partidaEspecial: false,
     });
 
     cargarGastos();
@@ -291,6 +355,8 @@ const logout = () => signOut(auth);
       descripcion: g.descripcion,
       cantidad: String(g.cantidad),
       persona: g.persona,
+      personasSeleccionadas: g.persona ? [g.persona] : [],
+      partidaEspecial: g.partidaEspecial || false,
     });
     setEditandoId(g.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -427,47 +493,68 @@ return (
       {usuario && (
         <>
           {/* Formulario */}
-          <form onSubmit={handleSubmit} className="flex gap-2 mb-4 flex-wrap items-end">
-            <input
-              type="date"
-              name="fecha"
-              value={nuevoGasto.fecha}
-              onChange={handleChange}
-              className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="text"
-              name="descripcion"
-              placeholder="Descripción"
-              value={nuevoGasto.descripcion}
-              onChange={handleChange}
-              className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-            />
-            <input
-              type="number"
-              step="0.01"
-              name="cantidad"
-              placeholder="Cantidad"
-              value={nuevoGasto.cantidad}
-              onChange={handleChange}
-              className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-            />
-            <select
-              name="persona"
-              value={nuevoGasto.persona}
-              onChange={handleChange}
-              className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            >
-              <option value="">Selecciona persona</option>
-              <option value="Paolo">Paolo</option>
-              <option value="Stfy">Stfy</option>
-              <option value="Pan">Pan</option>
-              <option value="León">León</option>
-              <option value="Todos">Todos</option>
-            </select>
+          <form onSubmit={handleSubmit} className="mb-4">
+            <div className="flex gap-2 flex-wrap items-end mb-3">
+              <input
+                type="date"
+                name="fecha"
+                value={nuevoGasto.fecha}
+                onChange={handleChange}
+                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="text"
+                name="descripcion"
+                placeholder="Descripción"
+                value={nuevoGasto.descripcion}
+                onChange={handleChange}
+                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              />
+              <input
+                type="number"
+                step="0.01"
+                name="cantidad"
+                placeholder="Cantidad total"
+                value={nuevoGasto.cantidad}
+                onChange={handleChange}
+                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              />
+            </div>
+
+            {/* Checkboxes para seleccionar personas */}
+            <div className="flex gap-4 mb-3 flex-wrap items-center">
+              <label className="text-sm font-semibold dark:text-white">Dividir entre:</label>
+              {miembros.map((miembro) => (
+                <label key={miembro} className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={nuevoGasto.personasSeleccionadas.includes(miembro)}
+                    onChange={() => handleCheckboxPersona(miembro)}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm dark:text-white">{miembro}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Checkbox para partida especial */}
+            <div className="flex gap-4 mb-3 items-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={nuevoGasto.partidaEspecial}
+                  onChange={handlePartidaEspecialChange}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm font-semibold dark:text-white">
+                  📊 Partida Especial (no se incluye en totales normales)
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              className={`px-3 py-2 rounded text-white transition text-sm ${
+              className={`px-4 py-2 rounded text-white transition text-sm ${
                 editandoId ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
               }`}
             >
@@ -502,11 +589,11 @@ return (
           {/* Totales por persona + global (filtrados por vista) */}
           <div className="mt-2 mb-4">
             <h2 className="font-bold text-center mb-2 dark:text-white">
-              {vista === "mes"
-                ? "Totales por persona (mes actual)"
+              💰 {vista === "mes"
+                ? "Gastos Normales (mes actual)"
                 : vista === "semana"
-                ? "Totales por persona (semana actual)"
-                : "Totales por persona (total)"}
+                ? "Gastos Normales (semana actual)"
+                : "Gastos Normales (total)"}
             </h2>
             <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {Object.entries(totalesPorPersonaVista).map(([persona, total]) => (
@@ -515,8 +602,31 @@ return (
                 </li>
               ))}
             </ul>
-            <p className="mt-3 font-bold text-center dark:text-white">Total global: {totalGlobal.toFixed(2)} €</p>
+            <p className="mt-3 font-bold text-center dark:text-white">Total: {totalGlobal.toFixed(2)} €</p>
           </div>
+
+          {/* Totales de partidas especiales */}
+          {totalPartidasEspeciales > 0 && (
+            <div className="mt-2 mb-4 border-2 border-purple-500 dark:border-purple-400 rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
+              <h2 className="font-bold text-center mb-2 text-purple-700 dark:text-purple-300">
+                📊 {vista === "mes"
+                  ? "Partidas Especiales (mes actual)"
+                  : vista === "semana"
+                  ? "Partidas Especiales (semana actual)"
+                  : "Partidas Especiales (total)"}
+              </h2>
+              <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(totalesPartidasEspeciales).map(([persona, total]) => (
+                  <li key={persona} className="border border-purple-300 dark:border-purple-600 rounded p-2 text-center text-sm bg-white dark:bg-gray-800 dark:text-white">
+                    <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 font-bold text-center text-purple-700 dark:text-purple-300">
+                Total Especial: {totalPartidasEspeciales.toFixed(2)} €
+              </p>
+            </div>
+          )}
 
           {/* Agrupación por mes y semana con tablas */}
           {Object.entries(gastosAgrupados).map(([mes, semanas]) => {
@@ -558,9 +668,19 @@ return (
                                 </thead>
                                 <tbody>
                                   {lista.map((g) => (
-                                    <tr key={g.id} className="dark:bg-gray-800">
+                                    <tr
+                                      key={g.id}
+                                      className={`${
+                                        g.partidaEspecial
+                                          ? "bg-purple-50 dark:bg-purple-900/30"
+                                          : "dark:bg-gray-800"
+                                      }`}
+                                    >
                                       <td className="p-2 border dark:border-gray-600 w-[70px] text-sm dark:text-white">{fFecha(g.fecha)}</td>
-                                      <td className="p-2 border dark:border-gray-600 text-sm dark:text-white">{g.descripcion}</td>
+                                      <td className="p-2 border dark:border-gray-600 text-sm dark:text-white">
+                                        {g.partidaEspecial && <span className="inline-block mr-1" title="Partida Especial">📊</span>}
+                                        {g.descripcion}
+                                      </td>
                                       <td className="p-2 border dark:border-gray-600 w-[80px] text-sm dark:text-white">
                                         {(g.cantidad || 0).toFixed(2)} €
                                       </td>
