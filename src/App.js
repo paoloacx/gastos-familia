@@ -58,6 +58,8 @@ function App() {
   const miembros = ["Paolo", "Stfy", "Pan", "León"];
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
   const [mesesAbiertos, setMesesAbiertos] = useState({});
+  const [partidasEspecialesAbiertas, setPartidasEspecialesAbiertas] = useState(false);
+  const [menuExportAbierto, setMenuExportAbierto] = useState(false);
   const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
   const [modoOscuro, setModoOscuro] = useState(() => {
     const guardado = localStorage.getItem("modoOscuro");
@@ -155,6 +157,9 @@ const logout = () => signOut(auth);
   };
   const toggleMes = (mes) => {
     setMesesAbiertos((prev) => ({ ...prev, [mes]: !prev[mes] }));
+  };
+  const togglePartidasEspeciales = () => {
+    setPartidasEspecialesAbiertas((prev) => !prev);
   };
   const toggleModoOscuro = () => {
     setModoOscuro((prev) => !prev);
@@ -362,17 +367,53 @@ const logout = () => signOut(auth);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const exportarExcel = () => {
-    const filas = gastos.map((g) => ({
+  // Obtener lista de meses únicos de los gastos
+  const mesesDisponibles = useMemo(() => {
+    const meses = new Set();
+    gastos.forEach((g) => {
+      const fecha = new Date(g.fecha);
+      const clave = mesClave(fecha);
+      meses.add(clave);
+    });
+    return Array.from(meses).sort((a, b) => {
+      // Ordenar por fecha más reciente primero
+      const [mesA, añoA] = a.split(" ");
+      const [mesB, añoB] = b.split(" ");
+      if (añoA !== añoB) return parseInt(añoB) - parseInt(añoA);
+      const mesesOrden = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+      return mesesOrden.indexOf(mesB.toLowerCase()) - mesesOrden.indexOf(mesA.toLowerCase());
+    });
+  }, [gastos]);
+
+  const exportarExcel = (mesSeleccionado = null) => {
+    let gastosFiltrados = gastos;
+
+    // Filtrar por mes si se especificó uno
+    if (mesSeleccionado) {
+      gastosFiltrados = gastos.filter((g) => {
+        const fecha = new Date(g.fecha);
+        return mesClave(fecha) === mesSeleccionado;
+      });
+    }
+
+    const filas = gastosFiltrados.map((g) => ({
       Fecha: fFecha(g.fecha),
       Descripcion: g.descripcion,
       Cantidad: g.cantidad,
       Persona: g.persona,
+      PartidaEspecial: g.partidaEspecial ? "Sí" : "No",
     }));
+
     const hoja = XLSX.utils.json_to_sheet(filas);
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Gastos");
-    XLSX.writeFile(libro, "gastos-familia.xlsx");
+
+    const nombreArchivo = mesSeleccionado
+      ? `gastos-${mesSeleccionado.replace(" ", "-")}.xlsx`
+      : "gastos-familia-completo.xlsx";
+
+    XLSX.writeFile(libro, nombreArchivo);
+    setMenuExportAbierto(false);
   };
 
   // Datos para gráficos
@@ -605,29 +646,6 @@ return (
             <p className="mt-3 font-bold text-center dark:text-white">Total: {totalGlobal.toFixed(2)} €</p>
           </div>
 
-          {/* Totales de partidas especiales */}
-          {totalPartidasEspeciales > 0 && (
-            <div className="mt-2 mb-4 border-2 border-purple-500 dark:border-purple-400 rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
-              <h2 className="font-bold text-center mb-2 text-purple-700 dark:text-purple-300">
-                📊 {vista === "mes"
-                  ? "Partidas Especiales (mes actual)"
-                  : vista === "semana"
-                  ? "Partidas Especiales (semana actual)"
-                  : "Partidas Especiales (total)"}
-              </h2>
-              <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {Object.entries(totalesPartidasEspeciales).map(([persona, total]) => (
-                  <li key={persona} className="border border-purple-300 dark:border-purple-600 rounded p-2 text-center text-sm bg-white dark:bg-gray-800 dark:text-white">
-                    <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 font-bold text-center text-purple-700 dark:text-purple-300">
-                Total Especial: {totalPartidasEspeciales.toFixed(2)} €
-              </p>
-            </div>
-          )}
-
           {/* Agrupación por mes y semana con tablas */}
           {Object.entries(gastosAgrupados).map(([mes, semanas]) => {
             const mesAbierto = !!mesesAbiertos[mes];
@@ -718,13 +736,47 @@ return (
             );
           })}
 
+          {/* Sección de Partidas Especiales (plegable) */}
+          {totalPartidasEspeciales > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={togglePartidasEspeciales}
+                className="w-full text-left text-xl font-bold mb-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all shadow-md"
+                aria-expanded={partidasEspecialesAbiertas}
+              >
+                📊 Partidas Especiales {partidasEspecialesAbiertas ? "▲" : "▼"}
+              </button>
+              {partidasEspecialesAbiertas && (
+                <div className="mt-2 border-2 border-purple-500 dark:border-purple-400 rounded-lg p-4 bg-purple-50/80 dark:bg-purple-900/20 backdrop-blur-sm">
+                  <h2 className="font-bold text-center mb-3 text-purple-700 dark:text-purple-300">
+                    {vista === "mes"
+                      ? "Totales (mes actual)"
+                      : vista === "semana"
+                      ? "Totales (semana actual)"
+                      : "Totales Generales"}
+                  </h2>
+                  <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {Object.entries(totalesPartidasEspeciales).map(([persona, total]) => (
+                      <li key={persona} className="border border-purple-300 dark:border-purple-600 rounded p-2 text-center text-sm bg-white/80 dark:bg-gray-800/80 dark:text-white backdrop-blur-sm">
+                        <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 font-bold text-center text-purple-700 dark:text-purple-300">
+                    Total Especial: {totalPartidasEspeciales.toFixed(2)} €
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Gráficos sincronizados con vista */}
           <section className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="h-64 border dark:border-gray-600 rounded p-3 bg-white/60 dark:bg-gray-800/80 backdrop-blur-sm">
+            <div className="h-64 border dark:border-gray-600 rounded p-3 bg-gray-100/60 dark:bg-gray-800/60 backdrop-blur-sm">
               <h3 className="font-semibold mb-2 text-center dark:text-white">Gastos por persona</h3>
               <Bar data={barData} options={chartOptions} />
             </div>
-            <div className="h-64 border dark:border-gray-600 rounded p-3 bg-white/60 dark:bg-gray-800/80 backdrop-blur-sm">
+            <div className="h-64 border dark:border-gray-600 rounded p-3 bg-gray-100/60 dark:bg-gray-800/60 backdrop-blur-sm">
               <h3 className="font-semibold mb-2 text-center dark:text-white">
                 {vista === "mes" ? "Total por mes" : vista === "semana" ? "Total por semana" : "Total histórico por mes"}
               </h3>
@@ -735,12 +787,36 @@ return (
       )}
       {/* Footer siempre visible */}
       <footer className="mt-8 border-t dark:border-gray-700 pt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-        <button
-          onClick={exportarExcel}
-          className="inline-flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white px-3 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        >
-          📤 Exportar a Excel
-        </button>
+        {/* Menú de exportación */}
+        <div className="relative inline-block">
+          <button
+            onClick={() => setMenuExportAbierto(!menuExportAbierto)}
+            className="inline-flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white px-3 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            📤 Exportar a Excel {menuExportAbierto ? "▲" : "▼"}
+          </button>
+
+          {menuExportAbierto && (
+            <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-2 min-w-[200px] max-h-[300px] overflow-y-auto z-10">
+              <button
+                onClick={() => exportarExcel()}
+                className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white transition-colors"
+              >
+                📊 Todo (completo)
+              </button>
+              <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+              {mesesDisponibles.map((mes) => (
+                <button
+                  key={mes}
+                  onClick={() => exportarExcel(mes)}
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white transition-colors"
+                >
+                  📅 {mes}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {usuario ? (
           <div className="mt-3">
