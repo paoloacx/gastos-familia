@@ -11,12 +11,11 @@ import {
   where 
 } from "firebase/firestore";
 import { db, auth, provider } from "./firebase";
-import { 
-  signInWithRedirect, 
-  signInWithPopup, 
-  signOut, 
+import {
+  signInWithRedirect,
+  signInWithPopup,
+  signOut,
   onAuthStateChanged,
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "firebase/auth";
 import * as XLSX from "xlsx";
