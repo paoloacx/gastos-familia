@@ -526,23 +526,20 @@ return (
   <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors grain-bg">
     {/* Header Premium */}
     <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl">
-      <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="max-w-4xl mx-auto px-4 py-1">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-lg">
-              <span className="text-3xl">💰</span>
+          <div className="flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 p-1 rounded-lg shadow-lg">
+              <span className="text-xl">💰</span>
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">Gastos Familia</h1>
-              <p className="text-xs text-white/80">Gestiona tus finanzas fácilmente</p>
-            </div>
+            <h1 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">Gastos Familia</h1>
           </div>
           <button
             onClick={toggleModoOscuro}
-            className="p-3 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110 shadow-lg"
+            className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110 shadow-lg"
             title={modoOscuro ? "Modo claro" : "Modo oscuro"}
           >
-            <span className="text-2xl">{modoOscuro ? "☀️" : "🌙"}</span>
+            <span className="text-lg">{modoOscuro ? "☀️" : "🌙"}</span>
           </button>
         </div>
       </div>
@@ -599,7 +596,7 @@ return (
       {usuario && (
         <>
           {/* Formulario Premium */}
-          <form onSubmit={handleSubmit} className="mb-6 p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border-2 border-gray-200 dark:border-gray-700">
+          <form onSubmit={handleSubmit} className="mb-6 p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border-2 border-gray-200 dark:border-gray-700 grain-box">
             <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
               <span className="text-2xl">✨</span>
               {editandoId ? "Editar Gasto" : "Nuevo Gasto"}
@@ -708,7 +705,7 @@ return (
           </form>
 
           {/* Dashboard de Métricas Rápidas */}
-          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-2 border-blue-200 dark:border-blue-800 shadow-lg grain-box">
             <h2 className="text-lg font-bold mb-4 text-center text-blue-800 dark:text-blue-300">📈 Resumen Mes Actual</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-shadow">
@@ -737,8 +734,54 @@ return (
             </div>
           </div>
 
+          {/* Selector Mes / Semana / Total */}
+          <div className="text-center mb-4">
+            <div className="inline-flex rounded overflow-hidden border dark:border-gray-600">
+              <button
+                onClick={() => setVista("mes")}
+                className={`px-3 py-1 text-sm transition-colors ${vista === "mes" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+              >
+                Mes
+              </button>
+              <button
+                onClick={() => setVista("semana")}
+                className={`px-3 py-1 text-sm transition-colors ${vista === "semana" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+              >
+                Semana
+              </button>
+              <button
+                onClick={() => setVista("total")}
+                className={`px-3 py-1 text-sm transition-colors ${vista === "total" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
+              >
+                Total
+              </button>
+            </div>
+          </div>
+
+          {/* Totales por persona + global (filtrados por vista) */}
+          <div className="mt-2 mb-6 p-5 rounded-2xl bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-2 border-green-200 dark:border-green-800 shadow-lg grain-box">
+            <h2 className="font-bold text-center mb-4 text-green-800 dark:text-green-300 text-lg">
+              💰 {vista === "mes"
+                ? "Gastos Normales (mes actual)"
+                : vista === "semana"
+                ? "Gastos Normales (semana actual)"
+                : "Gastos Normales (total)"}
+            </h2>
+            <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Object.entries(totalesPorPersonaVista).map(([persona, total]) => (
+                <li key={persona} className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl hover:scale-105 transition-all">
+                  <span className="font-bold block text-gray-700 dark:text-gray-300 text-sm mb-1">{persona}</span>
+                  <span className="text-xl font-bold text-green-600 dark:text-green-400">{total.toFixed(2)}€</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-300 dark:border-green-700">
+              <p className="font-bold text-center text-green-800 dark:text-green-300 text-xl">Total: {totalGlobal.toFixed(2)} €</p>
+            </div>
+          </div>
+
           {/* Búsqueda y Filtros */}
-          <div className="mb-4 p-4 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-600">
+          <div className="mb-4 p-4 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-600 grain-box">
             <div className="flex gap-3 flex-wrap items-end">
               <div className="flex-1 min-w-[200px]">
                 <label className="block text-sm font-semibold mb-1 dark:text-white">🔍 Buscar</label>
@@ -786,52 +829,6 @@ return (
                   Limpiar filtros
                 </button>
               )}
-            </div>
-          </div>
-
-          {/* Selector Mes / Semana / Total */}
-          <div className="text-center mb-4">
-            <div className="inline-flex rounded overflow-hidden border dark:border-gray-600">
-              <button
-                onClick={() => setVista("mes")}
-                className={`px-3 py-1 text-sm transition-colors ${vista === "mes" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-              >
-                Mes
-              </button>
-              <button
-                onClick={() => setVista("semana")}
-                className={`px-3 py-1 text-sm transition-colors ${vista === "semana" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-              >
-                Semana
-              </button>
-              <button
-                onClick={() => setVista("total")}
-                className={`px-3 py-1 text-sm transition-colors ${vista === "total" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-              >
-                Total
-              </button>
-            </div>
-          </div>
-
-          {/* Totales por persona + global (filtrados por vista) */}
-          <div className="mt-2 mb-6 p-5 rounded-2xl bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-2 border-green-200 dark:border-green-800 shadow-lg">
-            <h2 className="font-bold text-center mb-4 text-green-800 dark:text-green-300 text-lg">
-              💰 {vista === "mes"
-                ? "Gastos Normales (mes actual)"
-                : vista === "semana"
-                ? "Gastos Normales (semana actual)"
-                : "Gastos Normales (total)"}
-            </h2>
-            <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {Object.entries(totalesPorPersonaVista).map(([persona, total]) => (
-                <li key={persona} className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl hover:scale-105 transition-all">
-                  <span className="font-bold block text-gray-700 dark:text-gray-300 text-sm mb-1">{persona}</span>
-                  <span className="text-xl font-bold text-green-600 dark:text-green-400">{total.toFixed(2)}€</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-300 dark:border-green-700">
-              <p className="font-bold text-center text-green-800 dark:text-green-300 text-xl">Total: {totalGlobal.toFixed(2)} €</p>
             </div>
           </div>
 
