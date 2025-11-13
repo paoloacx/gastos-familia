@@ -523,17 +523,32 @@ if (loading) {
 }
 
 return (
-  <div className="max-w-4xl mx-auto p-4 min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors grain-bg">
-    <div className="flex justify-between items-center mb-4">
-      <h1 className="text-2xl font-bold text-center flex-1 dark:text-white">💰 Gastos Familia</h1>
-      <button
-        onClick={toggleModoOscuro}
-        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        title={modoOscuro ? "Modo claro" : "Modo oscuro"}
-      >
-        {modoOscuro ? "☀️" : "🌙"}
-      </button>
-    </div>
+  <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors grain-bg">
+    {/* Header Premium */}
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl">
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-lg">
+              <span className="text-3xl">💰</span>
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">Gastos Familia</h1>
+              <p className="text-xs text-white/80">Gestiona tus finanzas fácilmente</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleModoOscuro}
+            className="p-3 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110 shadow-lg"
+            title={modoOscuro ? "Modo claro" : "Modo oscuro"}
+          >
+            <span className="text-2xl">{modoOscuro ? "☀️" : "🌙"}</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div className="max-w-4xl mx-auto p-4 pb-8">
 
 
       {/* Login */}
@@ -583,73 +598,112 @@ return (
       {/* App autenticada */}
       {usuario && (
         <>
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="mb-4">
-            <div className="flex gap-2 flex-wrap items-end mb-3">
-              <input
-                type="date"
-                name="fecha"
-                value={nuevoGasto.fecha}
-                onChange={handleChange}
-                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-              />
-              <input
-                type="text"
-                name="descripcion"
-                placeholder="Descripción"
-                value={nuevoGasto.descripcion}
-                onChange={handleChange}
-                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-              />
-              <input
-                type="number"
-                step="0.01"
-                name="cantidad"
-                placeholder="Cantidad total"
-                value={nuevoGasto.cantidad}
-                onChange={handleChange}
-                className="border p-2 rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-              />
+          {/* Formulario Premium */}
+          <form onSubmit={handleSubmit} className="mb-6 p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border-2 border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+              <span className="text-2xl">✨</span>
+              {editandoId ? "Editar Gasto" : "Nuevo Gasto"}
+            </h2>
+
+            {/* Grid de inputs principales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">📅 Fecha</label>
+                <input
+                  type="date"
+                  name="fecha"
+                  value={nuevoGasto.fecha}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">📝 Descripción</label>
+                <input
+                  type="text"
+                  name="descripcion"
+                  placeholder="Ej: Supermercado"
+                  value={nuevoGasto.descripcion}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">💶 Cantidad</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="cantidad"
+                  placeholder="0.00"
+                  value={nuevoGasto.cantidad}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
             </div>
 
-            {/* Checkboxes para seleccionar personas */}
-            <div className="flex gap-4 mb-3 flex-wrap items-center">
-              <label className="text-sm font-semibold dark:text-white">Dividir entre:</label>
-              {miembros.map((miembro) => (
-                <label key={miembro} className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={nuevoGasto.personasSeleccionadas.includes(miembro)}
-                    onChange={() => handleCheckboxPersona(miembro)}
-                    className="cursor-pointer"
-                  />
-                  <span className="text-sm dark:text-white">{miembro}</span>
-                </label>
-              ))}
+            {/* Checkboxes de personas con mejor diseño */}
+            <div className="mb-5 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border-2 border-gray-200 dark:border-gray-600">
+              <label className="block text-sm font-bold mb-3 text-gray-700 dark:text-gray-300">👥 Dividir entre:</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {miembros.map((miembro) => (
+                  <label
+                    key={miembro}
+                    className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer border-2 transition-all ${
+                      nuevoGasto.personasSeleccionadas.includes(miembro)
+                        ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 dark:border-blue-400 shadow-md"
+                        : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={nuevoGasto.personasSeleccionadas.includes(miembro)}
+                      onChange={() => handleCheckboxPersona(miembro)}
+                      className="w-4 h-4 cursor-pointer accent-blue-600"
+                    />
+                    <span className="text-sm font-semibold dark:text-white">{miembro}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
-            {/* Checkbox para partida especial */}
-            <div className="flex gap-4 mb-3 items-center">
-              <label className="flex items-center gap-2 cursor-pointer">
+            {/* Checkbox partida especial con mejor diseño */}
+            <div className="mb-5">
+              <label
+                className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer border-2 transition-all ${
+                  nuevoGasto.partidaEspecial
+                    ? "bg-purple-100 dark:bg-purple-900/40 border-purple-500 dark:border-purple-400 shadow-md"
+                    : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-purple-400"
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={nuevoGasto.partidaEspecial}
                   onChange={handlePartidaEspecialChange}
-                  className="cursor-pointer"
+                  className="w-5 h-5 cursor-pointer accent-purple-600"
                 />
-                <span className="text-sm font-semibold dark:text-white">
-                  📊 Partida Especial (no se incluye en totales normales)
-                </span>
+                <div>
+                  <span className="text-sm font-bold dark:text-white flex items-center gap-2">
+                    <span className="text-xl">📊</span>
+                    Partida Especial
+                  </span>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    No se incluye en los totales normales
+                  </p>
+                </div>
               </label>
             </div>
 
+            {/* Botón de submit mejorado */}
             <button
               type="submit"
-              className={`px-4 py-2 rounded text-white transition text-sm ${
-                editandoId ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
+              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all ${
+                editandoId
+                  ? "bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                  : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               }`}
             >
-              {editandoId ? "Actualizar" : "Añadir"}
+              {editandoId ? "💾 Actualizar Gasto" : "➕ Añadir Gasto"}
             </button>
           </form>
 
@@ -984,6 +1038,7 @@ return (
 
         <p className="mt-2 dark:text-gray-400">© 2025 Gastos Familia</p>
       </footer>
+    </div>
     </div>
   );
 }
