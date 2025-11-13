@@ -55,7 +55,13 @@ function App() {
     partidaEspecial: false,
   });
   const [editandoId, setEditandoId] = useState(null);
-  const miembros = ["Paolo", "Stfy", "Pan", "León"];
+  const [miembros, setMiembros] = useState(() => {
+    const guardados = localStorage.getItem("miembrosFamilia");
+    return guardados ? JSON.parse(guardados) : ["Paolo", "Stfy", "Pan", "León"];
+  });
+  const [modalSettings, setModalSettings] = useState(false);
+  const [nuevoMiembro, setNuevoMiembro] = useState("");
+  const [editandoMiembro, setEditandoMiembro] = useState(null);
   const [semanasAbiertas, setSemanasAbiertas] = useState({});
   const [mesesAbiertos, setMesesAbiertos] = useState({});
   const [partidasEspecialesAbiertas, setPartidasEspecialesAbiertas] = useState(false);
@@ -78,6 +84,11 @@ function App() {
       document.documentElement.classList.remove("dark");
     }
   }, [modoOscuro]);
+
+  // Guardar miembros en localStorage
+  useEffect(() => {
+    localStorage.setItem("miembrosFamilia", JSON.stringify(miembros));
+  }, [miembros]);
 
   // Escuchar cambios de sesión con lista blanca
 useEffect(() => {
@@ -166,6 +177,52 @@ const logout = () => signOut(auth);
   };
   const toggleModoOscuro = () => {
     setModoOscuro((prev) => !prev);
+  };
+
+  // Gestión de miembros
+  const añadirMiembro = () => {
+    if (nuevoMiembro.trim() && !miembros.includes(nuevoMiembro.trim())) {
+      setMiembros([...miembros, nuevoMiembro.trim()]);
+      setNuevoMiembro("");
+    }
+  };
+
+  const eliminarMiembro = (miembro) => {
+    if (window.confirm(`¿Seguro que quieres eliminar a ${miembro}?`)) {
+      setMiembros(miembros.filter((m) => m !== miembro));
+      // Limpiar selecciones en el formulario si el miembro estaba seleccionado
+      setNuevoGasto((prev) => ({
+        ...prev,
+        personasSeleccionadas: prev.personasSeleccionadas.filter((p) => p !== miembro),
+      }));
+    }
+  };
+
+  const iniciarEdicionMiembro = (miembro) => {
+    setEditandoMiembro({ anterior: miembro, nuevo: miembro });
+  };
+
+  const guardarEdicionMiembro = () => {
+    if (editandoMiembro && editandoMiembro.nuevo.trim()) {
+      const nombreNuevo = editandoMiembro.nuevo.trim();
+      if (nombreNuevo !== editandoMiembro.anterior && miembros.includes(nombreNuevo)) {
+        alert("Ya existe un miembro con ese nombre");
+        return;
+      }
+      setMiembros(miembros.map((m) => (m === editandoMiembro.anterior ? nombreNuevo : m)));
+      // Actualizar también en el formulario si estaba seleccionado
+      setNuevoGasto((prev) => ({
+        ...prev,
+        personasSeleccionadas: prev.personasSeleccionadas.map((p) =>
+          p === editandoMiembro.anterior ? nombreNuevo : p
+        ),
+      }));
+      setEditandoMiembro(null);
+    }
+  };
+
+  const cancelarEdicionMiembro = () => {
+    setEditandoMiembro(null);
   };
 
   // Aplicar filtros de búsqueda y filtros
@@ -1007,6 +1064,14 @@ return (
           )}
         </div>
 
+        {/* Botón de Settings */}
+        <button
+          onClick={() => setModalSettings(true)}
+          className="ml-3 inline-flex items-center gap-2 bg-purple-500 dark:bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-600 dark:hover:bg-purple-700 transition-colors"
+        >
+          ⚙️ Configuración
+        </button>
+
         {usuario ? (
           <div className="mt-3">
             <p className="mb-1 dark:text-gray-300">
@@ -1036,6 +1101,114 @@ return (
         <p className="mt-2 dark:text-gray-400">© 2025 Gastos Familia</p>
       </footer>
     </div>
+
+    {/* Modal de Configuración */}
+    {modalSettings && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setModalSettings(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto grain-box" onClick={(e) => e.stopPropagation()}>
+          <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <span className="text-2xl">⚙️</span>
+              Configuración
+            </h2>
+            <button
+              onClick={() => setModalSettings(false)}
+              className="text-2xl hover:scale-110 transition-transform"
+              title="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="p-6">
+            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">👥 Miembros de la Familia</h3>
+
+            {/* Formulario añadir miembro */}
+            <div className="mb-4 flex gap-2">
+              <input
+                type="text"
+                placeholder="Nombre nuevo miembro..."
+                value={nuevoMiembro}
+                onChange={(e) => setNuevoMiembro(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && añadirMiembro()}
+                className="flex-1 border-2 border-gray-300 dark:border-gray-600 p-2 rounded-lg text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+              />
+              <button
+                onClick={añadirMiembro}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-semibold"
+              >
+                ➕
+              </button>
+            </div>
+
+            {/* Lista de miembros */}
+            <div className="space-y-2">
+              {miembros.map((miembro) => (
+                <div key={miembro} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                  {editandoMiembro && editandoMiembro.anterior === miembro ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editandoMiembro.nuevo}
+                        onChange={(e) => setEditandoMiembro({ ...editandoMiembro, nuevo: e.target.value })}
+                        onKeyPress={(e) => e.key === 'Enter' && guardarEdicionMiembro()}
+                        className="flex-1 border-2 border-purple-500 p-2 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 transition"
+                        autoFocus
+                      />
+                      <button
+                        onClick={guardarEdicionMiembro}
+                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-semibold"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={cancelarEdicionMiembro}
+                        className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition text-sm font-semibold"
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 font-semibold dark:text-white">{miembro}</span>
+                      <button
+                        onClick={() => iniciarEdicionMiembro(miembro)}
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                        title="Editar"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => eliminarMiembro(miembro)}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm"
+                        title="Eliminar"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {miembros.length === 0 && (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                No hay miembros. Añade al menos uno.
+              </p>
+            )}
+
+            <div className="mt-6 pt-4 border-t dark:border-gray-600">
+              <button
+                onClick={() => setModalSettings(false)}
+                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-700 transition-all shadow-lg"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
