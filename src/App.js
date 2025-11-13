@@ -61,6 +61,9 @@ function App() {
   const [partidasEspecialesAbiertas, setPartidasEspecialesAbiertas] = useState(false);
   const [menuExportAbierto, setMenuExportAbierto] = useState(false);
   const [vista, setVista] = useState("total"); // "mes" | "semana" | "total"
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroPersona, setFiltroPersona] = useState("");
+  const [filtroPartidaEspecial, setFiltroPartidaEspecial] = useState(false);
   const [modoOscuro, setModoOscuro] = useState(() => {
     const guardado = localStorage.getItem("modoOscuro");
     return guardado === "true";
@@ -164,9 +167,56 @@ const logout = () => signOut(auth);
   const toggleModoOscuro = () => {
     setModoOscuro((prev) => !prev);
   };
-  // Agrupación por mes y semana
+
+  // Aplicar filtros de búsqueda y filtros
+  const gastosFiltrados = useMemo(() => {
+    return gastos.filter((g) => {
+      const coincideBusqueda = g.descripcion.toLowerCase().includes(busqueda.toLowerCase());
+      const coincidePersona = !filtroPersona || g.persona === filtroPersona;
+      const coincidePartidaEspecial = !filtroPartidaEspecial || g.partidaEspecial;
+      return coincideBusqueda && coincidePersona && coincidePartidaEspecial;
+    });
+  }, [gastos, busqueda, filtroPersona, filtroPartidaEspecial]);
+
+  // Métricas para dashboard (mes actual)
+  const metricasMesActual = useMemo(() => {
+    const hoy = new Date();
+    const mesActual = hoy.getMonth();
+    const añoActual = hoy.getFullYear();
+
+    const gastosMes = gastos.filter((g) => {
+      const f = new Date(g.fecha);
+      return f.getMonth() === mesActual && f.getFullYear() === añoActual && !g.partidaEspecial;
+    });
+
+    const totalMes = gastosMes.reduce((sum, g) => sum + (g.cantidad || 0), 0);
+
+    // Días del mes
+    const diasEnMes = new Date(añoActual, mesActual + 1, 0).getDate();
+    const diaActual = hoy.getDate();
+    const diasRestantes = diasEnMes - diaActual;
+
+    // Media diaria
+    const mediaDiaria = diaActual > 0 ? totalMes / diaActual : 0;
+
+    // Top gasto
+    const topGasto = gastosMes.length > 0
+      ? gastosMes.reduce((max, g) => g.cantidad > max.cantidad ? g : max)
+      : null;
+
+    return {
+      totalMes,
+      mediaDiaria,
+      diasRestantes,
+      topGasto,
+      diasEnMes,
+      diaActual
+    };
+  }, [gastos]);
+
+  // Agrupación por mes y semana (usar gastos filtrados)
   const gastosAgrupados = useMemo(() => {
-    return gastos.reduce((acc, g) => {
+    return gastosFiltrados.reduce((acc, g) => {
       const fechaObj = new Date(g.fecha);
       const mes = mesClave(fechaObj);
       const semana = `Semana ${semanaDelAnio(fechaObj)}`;
@@ -175,7 +225,7 @@ const logout = () => signOut(auth);
       acc[mes][semana].push(g);
       return acc;
     }, {});
-  }, [gastos]);
+  }, [gastosFiltrados]);
 
   // Totales por persona filtrados según vista (solo gastos normales)
   const totalesPorPersonaVista = useMemo(() => {
@@ -603,6 +653,88 @@ return (
             </button>
           </form>
 
+          {/* Dashboard de Métricas Rápidas */}
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+            <h2 className="text-lg font-bold mb-4 text-center text-blue-800 dark:text-blue-300">📈 Resumen Mes Actual</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-shadow">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Gastado</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metricasMesActual.totalMes.toFixed(0)}€</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-shadow">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Media diaria</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{metricasMesActual.mediaDiaria.toFixed(0)}€</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-shadow">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Quedan</p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{metricasMesActual.diasRestantes} días</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-shadow">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Top gasto</p>
+                <p className="text-sm font-bold text-purple-600 dark:text-purple-400 truncate" title={metricasMesActual.topGasto?.descripcion}>
+                  {metricasMesActual.topGasto ? metricasMesActual.topGasto.descripcion : "-"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Día {metricasMesActual.diaActual} de {metricasMesActual.diasEnMes}
+              </p>
+            </div>
+          </div>
+
+          {/* Búsqueda y Filtros */}
+          <div className="mb-4 p-4 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-600">
+            <div className="flex gap-3 flex-wrap items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-semibold mb-1 dark:text-white">🔍 Buscar</label>
+                <input
+                  type="text"
+                  placeholder="Buscar por descripción..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 dark:text-white">Persona</label>
+                <select
+                  value={filtroPersona}
+                  onChange={(e) => setFiltroPersona(e.target.value)}
+                  className="border p-2 rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="">Todas</option>
+                  {miembros.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                  <input
+                    type="checkbox"
+                    checked={filtroPartidaEspecial}
+                    onChange={(e) => setFiltroPartidaEspecial(e.target.checked)}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm font-semibold dark:text-white">Solo especiales</span>
+                </label>
+              </div>
+              {(busqueda || filtroPersona || filtroPartidaEspecial) && (
+                <button
+                  onClick={() => {
+                    setBusqueda("");
+                    setFiltroPersona("");
+                    setFiltroPartidaEspecial(false);
+                  }}
+                  className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-semibold"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Selector Mes / Semana / Total */}
           <div className="text-center mb-4">
             <div className="inline-flex rounded overflow-hidden border dark:border-gray-600">
@@ -628,22 +760,25 @@ return (
           </div>
 
           {/* Totales por persona + global (filtrados por vista) */}
-          <div className="mt-2 mb-4">
-            <h2 className="font-bold text-center mb-2 dark:text-white">
+          <div className="mt-2 mb-6 p-5 rounded-2xl bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-2 border-green-200 dark:border-green-800 shadow-lg">
+            <h2 className="font-bold text-center mb-4 text-green-800 dark:text-green-300 text-lg">
               💰 {vista === "mes"
                 ? "Gastos Normales (mes actual)"
                 : vista === "semana"
                 ? "Gastos Normales (semana actual)"
                 : "Gastos Normales (total)"}
             </h2>
-            <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {Object.entries(totalesPorPersonaVista).map(([persona, total]) => (
-                <li key={persona} className="border rounded p-2 text-center text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                  <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
+                <li key={persona} className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-md border border-gray-200 dark:border-gray-600 hover:shadow-xl hover:scale-105 transition-all">
+                  <span className="font-bold block text-gray-700 dark:text-gray-300 text-sm mb-1">{persona}</span>
+                  <span className="text-xl font-bold text-green-600 dark:text-green-400">{total.toFixed(2)}€</span>
                 </li>
               ))}
             </ul>
-            <p className="mt-3 font-bold text-center dark:text-white">Total: {totalGlobal.toFixed(2)} €</p>
+            <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-300 dark:border-green-700">
+              <p className="font-bold text-center text-green-800 dark:text-green-300 text-xl">Total: {totalGlobal.toFixed(2)} €</p>
+            </div>
           </div>
 
           {/* Agrupación por mes y semana con tablas */}
@@ -653,7 +788,7 @@ return (
               <div key={mes} className="mb-6">
                 <button
                   onClick={() => toggleMes(mes)}
-                  className="w-full text-left text-xl font-bold mb-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md"
+                  className="w-full text-left text-xl font-bold mb-2 px-5 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl hover:from-blue-600 hover:to-purple-700 hover:shadow-2xl hover:scale-[1.02] transition-all shadow-lg"
                   aria-expanded={mesAbierto}
                 >
                   📅 {mes} {mesAbierto ? "▲" : "▼"}
@@ -741,30 +876,33 @@ return (
             <div className="mb-6">
               <button
                 onClick={togglePartidasEspeciales}
-                className="w-full text-left text-xl font-bold mb-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all shadow-md"
+                className="w-full text-left text-xl font-bold mb-2 px-5 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl hover:from-purple-600 hover:to-pink-700 hover:shadow-2xl hover:scale-[1.02] transition-all shadow-lg"
                 aria-expanded={partidasEspecialesAbiertas}
               >
                 📊 Partidas Especiales {partidasEspecialesAbiertas ? "▲" : "▼"}
               </button>
               {partidasEspecialesAbiertas && (
-                <div className="mt-2 border-2 border-purple-500 dark:border-purple-400 rounded-lg p-4 bg-purple-50/80 dark:bg-purple-900/20 backdrop-blur-sm">
-                  <h2 className="font-bold text-center mb-3 text-purple-700 dark:text-purple-300">
+                <div className="mt-2 border-2 border-purple-500 dark:border-purple-400 rounded-2xl p-5 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 backdrop-blur-sm shadow-lg">
+                  <h2 className="font-bold text-center mb-4 text-purple-800 dark:text-purple-300 text-lg">
                     {vista === "mes"
                       ? "Totales (mes actual)"
                       : vista === "semana"
                       ? "Totales (semana actual)"
                       : "Totales Generales"}
                   </h2>
-                  <ul className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {Object.entries(totalesPartidasEspeciales).map(([persona, total]) => (
-                      <li key={persona} className="border border-purple-300 dark:border-purple-600 rounded p-2 text-center text-sm bg-white/80 dark:bg-gray-800/80 dark:text-white backdrop-blur-sm">
-                        <span className="font-semibold">{persona}</span>: {total.toFixed(2)} €
+                      <li key={persona} className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-md border border-purple-200 dark:border-purple-600 hover:shadow-xl hover:scale-105 transition-all">
+                        <span className="font-bold block text-gray-700 dark:text-gray-300 text-sm mb-1">{persona}</span>
+                        <span className="text-xl font-bold text-purple-600 dark:text-purple-400">{total.toFixed(2)}€</span>
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-3 font-bold text-center text-purple-700 dark:text-purple-300">
-                    Total Especial: {totalPartidasEspeciales.toFixed(2)} €
-                  </p>
+                  <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-purple-300 dark:border-purple-700">
+                    <p className="font-bold text-center text-purple-800 dark:text-purple-300 text-xl">
+                      Total Especial: {totalPartidasEspeciales.toFixed(2)} €
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
