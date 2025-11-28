@@ -79,7 +79,14 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors grain-bg">
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        containerStyle={{
+          top: 20,
+          zIndex: 99999,
+        }}
+      />
       {/* Header Premium */}
       <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl">
         <div className="max-w-4xl mx-auto px-4 py-1">

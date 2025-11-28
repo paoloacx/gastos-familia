@@ -21,7 +21,7 @@ const ExpenseForm = ({
 
             {/* Grid de inputs principales */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                <div>
+                <div className="relative min-w-0 w-full">
                     <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                         📅 Fecha
                     </label>
@@ -30,7 +30,7 @@ const ExpenseForm = ({
                         name="fecha"
                         value={nuevoGasto.fecha}
                         onChange={handleChange}
-                        className="w-full max-w-full min-w-0 border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        className="w-full appearance-none border-2 border-gray-300 dark:border-gray-600 p-2 rounded-xl text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                     />
                 </div>
                 <div>

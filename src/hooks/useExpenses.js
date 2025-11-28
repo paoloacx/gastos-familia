@@ -10,6 +10,8 @@ import {
 import { db } from "../firebase";
 import { mesClave, semanaDelAnio } from "../utils/dateUtils";
 
+import { toast } from "react-hot-toast";
+
 export const useExpenses = (usuario, vista) => {
     const [gastos, setGastos] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -43,6 +45,7 @@ export const useExpenses = (usuario, vista) => {
             setGastos(normalizados);
         } catch (error) {
             console.error("Error cargando gastos:", error);
+            toast.error("Error al cargar los gastos");
         } finally {
             setLoading(false);
         }
@@ -82,7 +85,7 @@ export const useExpenses = (usuario, vista) => {
 
         if (!fecha || !descripcion || !cantidad) return;
         if (personasSeleccionadas.length === 0) {
-            alert("Selecciona al menos una persona");
+            toast.error("Selecciona al menos una persona");
             return;
         }
 
@@ -96,8 +99,11 @@ export const useExpenses = (usuario, vista) => {
                     cantidad: cantidadNum,
                     persona: personasSeleccionadas[0] || "",
                     partidaEspecial: partidaEspecial || false,
+                    categoriaEspecial: partidaEspecial ? nuevoGasto.categoriaEspecial : null,
+                    detalleEspecial: partidaEspecial && nuevoGasto.categoriaEspecial === "Otros" ? nuevoGasto.detalleEspecial : null
                 });
                 setEditandoId(null);
+                toast.success("Gasto actualizado correctamente");
             } else {
                 const cantidadPorPersona = cantidadNum / personasSeleccionadas.length;
                 for (const persona of personasSeleccionadas) {
@@ -109,8 +115,11 @@ export const useExpenses = (usuario, vista) => {
                         cantidad: cantidadPorPersona,
                         persona,
                         partidaEspecial: partidaEspecial || false,
+                        categoriaEspecial: partidaEspecial ? nuevoGasto.categoriaEspecial : null,
+                        detalleEspecial: partidaEspecial && nuevoGasto.categoriaEspecial === "Otros" ? nuevoGasto.detalleEspecial : null
                     });
                 }
+                toast.success("Gasto guardado correctamente");
             }
 
             setNuevoGasto({
@@ -120,11 +129,13 @@ export const useExpenses = (usuario, vista) => {
                 persona: "",
                 personasSeleccionadas: [],
                 partidaEspecial: false,
+                categoriaEspecial: "Cumpleaños",
+                detalleEspecial: ""
             });
             cargarGastos();
         } catch (error) {
             console.error("Error guardando gasto:", error);
-            alert("Error al guardar el gasto");
+            toast.error("Error al guardar el gasto");
         }
     };
 
@@ -132,9 +143,11 @@ export const useExpenses = (usuario, vista) => {
         if (window.confirm("¿Seguro que quieres borrar este gasto?")) {
             try {
                 await deleteDoc(doc(db, "gastos", id));
+                toast.success("Gasto eliminado");
                 cargarGastos();
             } catch (error) {
                 console.error("Error borrando gasto:", error);
+                toast.error("Error al eliminar el gasto");
             }
         }
     };
