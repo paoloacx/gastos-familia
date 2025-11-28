@@ -20,7 +20,7 @@ function App() {
 
   const {
     gastos,
-    loading: expensesLoading,
+    // loading, // Removed unused variable
     nuevoGasto,
     editandoId,
     busqueda, setBusqueda,
@@ -36,10 +36,9 @@ function App() {
     gastosAgrupados,
     totalesPorPersonaVista,
     totalesPartidasEspeciales,
+    totalesPorCategoriaEspecial,
     totalGlobal,
     totalPartidasEspeciales,
-    totalesPorMes,
-    totalesPorSemana,
     mesesDisponibles,
     barData,
     lineData
@@ -145,6 +144,7 @@ function App() {
               handleDelete={handleDelete}
               totalesPartidasEspeciales={totalesPartidasEspeciales}
               totalPartidasEspeciales={totalPartidasEspeciales}
+              totalesPorCategoriaEspecial={totalesPorCategoriaEspecial}
             />
 
             <ChartsSection
