@@ -83,8 +83,31 @@ function App() {
         position="top-center"
         reverseOrder={false}
         containerStyle={{
-          top: 20,
+          top: '20%', // More centered vertically
           zIndex: 99999,
+        }}
+        toastOptions={{
+          style: {
+            fontSize: '18px',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10B981',
+              secondary: 'white',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: 'white',
+            },
+          },
         }}
       />
       {/* Header Premium */}
