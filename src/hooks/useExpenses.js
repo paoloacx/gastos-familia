@@ -22,6 +22,8 @@ export const useExpenses = (usuario, vista) => {
         persona: "",
         personasSeleccionadas: [],
         partidaEspecial: false,
+        categoriaEspecial: "Cumpleaños",
+        detalleEspecial: ""
     });
     const [editandoId, setEditandoId] = useState(null);
 
@@ -361,6 +363,38 @@ export const useExpenses = (usuario, vista) => {
         ],
     };
 
+    const totalesPorCategoriaEspecial = useMemo(() => {
+        let filtrados = gastos.filter((g) => g.partidaEspecial);
+
+        if (vista === "mes") {
+            const mesActual = new Date().getMonth();
+            const añoActual = new Date().getFullYear();
+            filtrados = filtrados.filter((g) => {
+                const f = new Date(g.fecha);
+                return f.getMonth() === mesActual && f.getFullYear() === añoActual;
+            });
+        }
+
+        if (vista === "semana") {
+            const semanaActual = semanaDelAnio(new Date());
+            const añoActual = new Date().getFullYear();
+            filtrados = filtrados.filter((g) => {
+                const f = new Date(g.fecha);
+                return semanaDelAnio(f) === semanaActual && f.getFullYear() === añoActual;
+            });
+        }
+
+        return filtrados.reduce((acc, g) => {
+            const cat = g.categoriaEspecial || "Sin categoría";
+            const detalle = g.categoriaEspecial === "Otros" && g.detalleEspecial
+                ? `Otros (${g.detalleEspecial})`
+                : cat;
+
+            acc[detalle] = (acc[detalle] || 0) + (isNaN(g.cantidad) ? 0 : g.cantidad);
+            return acc;
+        }, {});
+    }, [gastos, vista]);
+
     return {
         gastos,
         loading,
@@ -386,6 +420,7 @@ export const useExpenses = (usuario, vista) => {
         gastosAgrupados,
         totalesPorPersonaVista,
         totalesPartidasEspeciales,
+        totalesPorCategoriaEspecial,
         totalGlobal,
         totalPartidasEspeciales,
         totalesPorMes,
