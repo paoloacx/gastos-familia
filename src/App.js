@@ -89,7 +89,7 @@ function App() {
                 <span className="text-xl">💰</span>
               </div>
               <h1 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
-                Gastos Familia
+                Gastos Familia 2.0
               </h1>
             </div>
             <button
