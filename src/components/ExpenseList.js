@@ -8,7 +8,8 @@ const ExpenseList = ({
     handleEdit,
     handleDelete,
     totalesPartidasEspeciales,
-    totalPartidasEspeciales
+    totalPartidasEspeciales,
+    totalesPorCategoriaEspecial
 }) => {
     const [semanasAbiertas, setSemanasAbiertas] = useState({});
     const [mesesAbiertos, setMesesAbiertos] = useState({});
@@ -34,8 +35,8 @@ const ExpenseList = ({
                     <button
                         onClick={() => setVista("mes")}
                         className={`px-3 py-1 text-sm transition-colors ${vista === "mes"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 dark:text-white"
                             }`}
                     >
                         Mes
@@ -43,8 +44,8 @@ const ExpenseList = ({
                     <button
                         onClick={() => setVista("semana")}
                         className={`px-3 py-1 text-sm transition-colors ${vista === "semana"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 dark:text-white"
                             }`}
                     >
                         Semana
@@ -52,8 +53,8 @@ const ExpenseList = ({
                     <button
                         onClick={() => setVista("total")}
                         className={`px-3 py-1 text-sm transition-colors ${vista === "total"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 dark:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 dark:text-white"
                             }`}
                     >
                         Total
@@ -117,8 +118,8 @@ const ExpenseList = ({
                                                                 <tr
                                                                     key={g.id}
                                                                     className={`${g.partidaEspecial
-                                                                            ? "bg-purple-50 dark:bg-purple-900/30"
-                                                                            : "dark:bg-gray-800"
+                                                                        ? "bg-purple-50 dark:bg-purple-900/30"
+                                                                        : "dark:bg-gray-800"
                                                                         }`}
                                                                 >
                                                                     <td className="p-2 border dark:border-gray-600 w-[70px] text-sm dark:text-white">
@@ -126,14 +127,15 @@ const ExpenseList = ({
                                                                     </td>
                                                                     <td className="p-2 border dark:border-gray-600 text-sm dark:text-white">
                                                                         {g.partidaEspecial && (
-                                                                            <span
-                                                                                className="inline-block mr-1"
-                                                                                title="Partida Especial"
-                                                                            >
-                                                                                📊
-                                                                            </span>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                                                                                    {g.categoriaEspecial || "Especial"}
+                                                                                    {g.detalleEspecial && ` - ${g.detalleEspecial}`}
+                                                                                </span>
+                                                                                <span>{g.descripcion}</span>
+                                                                            </div>
                                                                         )}
-                                                                        {g.descripcion}
+                                                                        {!g.partidaEspecial && g.descripcion}
                                                                     </td>
                                                                     <td className="p-2 border dark:border-gray-600 w-[80px] text-sm dark:text-white">
                                                                         {(g.cantidad || 0).toFixed(2)} €
@@ -204,6 +206,28 @@ const ExpenseList = ({
                                                 {persona}
                                             </span>
                                             <span className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                                                {total.toFixed(2)}€
+                                            </span>
+                                        </li>
+                                    )
+                                )}
+                            </ul>
+
+                            {/* Desglose por Categoría Especial */}
+                            <h3 className="font-bold text-center mt-6 mb-3 text-purple-800 dark:text-purple-300 text-md">
+                                Por Categoría
+                            </h3>
+                            <ul className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {Object.entries(totalesPorCategoriaEspecial).map(
+                                    ([categoria, total]) => (
+                                        <li
+                                            key={categoria}
+                                            className="bg-purple-100 dark:bg-purple-900/40 rounded-xl p-3 text-center shadow-sm border border-purple-200 dark:border-purple-700"
+                                        >
+                                            <span className="font-bold block text-gray-700 dark:text-gray-300 text-sm mb-1">
+                                                {categoria}
+                                            </span>
+                                            <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
                                                 {total.toFixed(2)}€
                                             </span>
                                         </li>
