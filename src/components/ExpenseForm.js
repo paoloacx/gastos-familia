@@ -114,6 +114,38 @@ const ExpenseForm = ({
                         </p>
                     </div>
                 </label>
+
+                {/* Selector de Categoría Especial */}
+                {nuevoGasto.partidaEspecial && (
+                    <div className="mt-3 ml-8 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700 animate-fadeIn">
+                        <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                            Tipo de Partida Especial
+                        </label>
+                        <div className="flex flex-col gap-3">
+                            <select
+                                name="categoriaEspecial"
+                                value={nuevoGasto.categoriaEspecial}
+                                onChange={handleChange}
+                                className="w-full border-2 border-purple-300 dark:border-purple-600 p-2 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 transition"
+                            >
+                                <option value="Cumpleaños">🎂 Cumpleaños</option>
+                                <option value="Navidades">🎄 Navidades</option>
+                                <option value="Otros">🔹 Otros</option>
+                            </select>
+
+                            {nuevoGasto.categoriaEspecial === "Otros" && (
+                                <input
+                                    type="text"
+                                    name="detalleEspecial"
+                                    placeholder="Especificar (ej: Viaje, Boda...)"
+                                    value={nuevoGasto.detalleEspecial}
+                                    onChange={handleChange}
+                                    className="w-full border-2 border-purple-300 dark:border-purple-600 p-2 rounded-lg text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 transition"
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Botón de submit */}

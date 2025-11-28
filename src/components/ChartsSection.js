@@ -8,6 +8,7 @@ import {
     PointElement,
     Tooltip,
     Legend,
+    Filler
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
 
@@ -18,7 +19,8 @@ ChartJS.register(
     LinearScale,
     PointElement,
     Tooltip,
-    Legend
+    Legend,
+    Filler
 );
 
 const ChartsSection = ({ barData, lineData, chartOptions, vista }) => {
