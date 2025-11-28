@@ -30,7 +30,7 @@ const ExpenseForm = ({
                         name="fecha"
                         value={nuevoGasto.fecha}
                         onChange={handleChange}
-                        className="w-full border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        className="w-full max-w-full min-w-0 border-2 border-gray-300 dark:border-gray-600 p-3 rounded-xl text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                     />
                 </div>
                 <div>
@@ -72,8 +72,8 @@ const ExpenseForm = ({
                         <label
                             key={miembro}
                             className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer border-2 transition-all ${nuevoGasto.personasSeleccionadas.includes(miembro)
-                                    ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 dark:border-blue-400 shadow-md"
-                                    : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                                ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 dark:border-blue-400 shadow-md"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-400"
                                 }`}
                         >
                             <input
@@ -94,8 +94,8 @@ const ExpenseForm = ({
             <div className="mb-5">
                 <label
                     className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer border-2 transition-all ${nuevoGasto.partidaEspecial
-                            ? "bg-purple-100 dark:bg-purple-900/40 border-purple-500 dark:border-purple-400 shadow-md"
-                            : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-purple-400"
+                        ? "bg-purple-100 dark:bg-purple-900/40 border-purple-500 dark:border-purple-400 shadow-md"
+                        : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-purple-400"
                         }`}
                 >
                     <input
@@ -120,8 +120,8 @@ const ExpenseForm = ({
             <button
                 type="submit"
                 className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all ${editandoId
-                        ? "bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
-                        : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                    ? "bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                    : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                     }`}
             >
                 {editandoId ? "💾 Actualizar Gasto" : "➕ Añadir Gasto"}
