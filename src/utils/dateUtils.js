@@ -5,11 +5,18 @@ export const fFecha = (iso) => {
 };
 
 export const semanaDelAnio = (date) => {
-  const y = date.getFullYear();
-  const start = new Date(y, 0, 1);
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const offset = Math.floor((date - start) / msPerDay);
-  return Math.floor(offset / 7) + 1;
+  // Copiamos la fecha para no mutar la original
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Establecemos el día al jueves más cercano: actual + 4 - día actual (domingo es 0)
+  // En ISO 8601, la semana empieza en lunes (1) y termina en domingo (7).
+  // Ajustamos para que domingo sea 7.
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  // Inicio del año
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  // Calculamos la semana
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
 };
 
 export const mesClave = (date) => {
